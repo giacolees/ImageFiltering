@@ -1,4 +1,4 @@
-# ImageFiltering
+# VHDL Image Filtering
 
 ## Project Description ##
 ![plot](./Graphics/ProjectStructure.png)
