@@ -11,10 +11,10 @@ entity line_buffer is
     Port (
         clk             : in std_logic;     -- Clock input
         rstn            : in std_logic;     -- Negated asynchronous reset
-        data_in         : in std_logic; -- Input to be pushed to the FIFO
+        data_in         : in std_logic;     -- Input to be pushed to the FIFO
         data_rdy        : in std_logic;     -- Input bit indicating if the current input data should be pushed to the back of the FIFO queue
-        result          : out std_logic; -- Outputs the element at the front of the FIFO queue
-        result_rdy      : out std_logic      -- If '1', the front element will be removed from the FIFO queue until the next clock cycle
+        result          : out std_logic;    -- Outputs the element at the front of the FIFO queue
+        result_rdy      : out std_logic     -- If '1', the front element will be removed from the FIFO queue until the next clock cycle
     );
 end line_buffer;
 
@@ -39,6 +39,7 @@ architecture rtl of line_buffer is
         );
     end component;
 
+    -- Internal signals for addressing and data transfer
     signal read_addr  : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal write_addr : std_logic_vector(ADDR_WIDTH-1 downto 0) := (others => '0');
     signal write_enable : std_logic := '1';
@@ -61,33 +62,34 @@ begin
         )
         port map (
             clk     => clk,
-            wena    => data_rdy,
-            wenb    => '0',
-            addra   => write_addr,
-            addrb   => read_addr,
-            dina(0) => data_in,
-            dinb    => (others => '0'),
-            douta   => open,
-            doutb   => dout
+            wena    => data_rdy,  -- Write enable for port A
+            wenb    => '0',  -- Write enable for port B (unused)
+            addra   => write_addr,  -- Address for port A
+            addrb   => read_addr,   -- Address for port B
+            dina(0) => data_in,  -- Data input for port A
+            dinb    => (others => '0'),  -- Data input for port B (unused)
+            douta   => open,  -- Data output from port A (unused)
+            doutb   => dout   -- Data output from port B
         );
 
     -- FIFO logic
     process(clk, rstn)
     begin   
         if rstn = '0' then
+            -- Asynchronous reset
             write_addr <= (others => '0');
             read_addr <= (others => '0');
             can_read <= '0';
         elsif rising_edge(clk) then
-
+            -- Synchronous process on rising edge of the clock
             no_data_rdy <= '0';
             result_rdy <= '0';
 
             if data_rdy = '1' then
-                
+                -- Increment write address and manage FIFO buffer
                 write_addr <= std_logic_vector((unsigned(write_addr) + 1) mod LINE_LENGTH);            
 
-                if fifo_count = LINE_LENGTH -1 then
+                if fifo_count = LINE_LENGTH - 1 then
                     can_read <= '1';
                     read_addr <= std_logic_vector((unsigned(read_addr) + 1) mod LINE_LENGTH);
                 end if;
@@ -107,16 +109,17 @@ begin
                 end if;
 
             else 
-
                 if no_data_rdy = '0' then
                     r_res <= dout(0);
                 end if; 
                 no_data_rdy <= '1';
-
             end if;
         end if;
     end process;
 
-    fifo_count <= to_integer(unsigned(write_addr) - unsigned(read_addr)) when unsigned(write_addr) >= unsigned(read_addr) else to_integer(unsigned(write_addr) + LINE_LENGTH - unsigned(read_addr));
+    -- Calculate FIFO count
+    fifo_count <= to_integer(unsigned(write_addr) - unsigned(read_addr)) 
+                  when unsigned(write_addr) >= unsigned(read_addr) 
+                  else to_integer(unsigned(write_addr) + LINE_LENGTH - unsigned(read_addr));
 
 end rtl;

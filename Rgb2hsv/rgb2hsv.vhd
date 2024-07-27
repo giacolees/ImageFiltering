@@ -49,7 +49,7 @@ architecture rtl of rgb2hsv is
     function min3(a : unsigned; b : unsigned; c : unsigned) return unsigned is
         variable result : unsigned(7 downto 0) := "11111111";
     begin
-        -- STUDENT CODE HERE
+
         if a < b then
             result := a;
         else
@@ -61,7 +61,7 @@ architecture rtl of rgb2hsv is
             result := c;
         end if;
         return result;    
-        -- STUDENT CODE until HERE
+
     end function min3;
 
 
@@ -80,13 +80,13 @@ architecture rtl of rgb2hsv is
     );
     end component;
 
-    -- STUDENT CODE HERE
 
     -- Shift registers
     signal r_v_result : u8_array_t(1 to RESULT_WIDTH+2);
     signal r_max : std3_array_t(1 to RESULT_WIDTH+2);
     
-    
+
+    -- Signals for the div16_8_8 instances
     signal h_en, s_en : std_logic;
     signal max_val :  std_logic_vector(7 downto 0);
     signal delta :  std_logic_vector(7 downto 0);
@@ -96,14 +96,15 @@ architecture rtl of rgb2hsv is
     signal h_to : std_logic_vector(16 downto 0);
     signal r_data_rdy : std_logic;
 
+    -- Final result signals
     signal h_final_result : std_logic_vector(8 downto 0);
     signal s_final_result : std_logic_vector(7 downto 0);
     signal v_final_result : std_logic_vector(7 downto 0);
 
 
-    -- STUDENT CODE until HERE
 begin
 
+    -- Instantiate div16_8_8 components for hue and saturation calculation
     div16_8_8_inst_h : div16_8_8
     port map (
         clk => clk,
@@ -124,10 +125,10 @@ begin
         result => s_div_result
     );
 
-    -- STUDENT CODE HERE
     --Process for assignment 
     process(clk, rstn)
 
+    -- Variables for intermediate calculations
     variable temp_max : unsigned(7 downto 0);
     variable temp_min : unsigned(7 downto 0);
     variable temp_delta : unsigned(7 downto 0);
@@ -136,18 +137,21 @@ begin
 
     begin
 
+        -- Asynchronous reset
         if rstn = '0' then
 
             result_rdy <= '0';
             r_data_rdy <= '0';
             result_rdy <= '0';
 
+        -- Synchronous process on rising edge of clock
         elsif rising_edge(clk) then
             
             r_data_rdy <= data_rdy;
 
             if data_rdy = '1' then
 
+                -- Calculate the maximum, minimum and delta values
                 temp_max := max3(unsigned(r), unsigned(g), unsigned(b));
                 temp_min := min3(unsigned(r), unsigned(g), unsigned(b));
                 temp_delta := temp_max - temp_min;
@@ -159,6 +163,7 @@ begin
                 signed_blue := '0'&signed(b);
                 result_rdy <= '0';
         
+                -- Check if the delta value is zero and set the enable signal for the saturation calculation
                 if temp_max = 0  then
 
                     s_en <= '0';
@@ -170,10 +175,12 @@ begin
 
                 end if;
 
+                -- Check if the delta value is zero and set the enable signal for the hue calculation
                 if temp_delta = 0 then
 
                     h_en <= '0';
-    
+
+                -- Check which is the maximum value and set the value for the hue calculation
                 elsif temp_max = unsigned(r) then
 
                     h_to <= std_logic_vector(to_signed(60*to_integer(signed_green-signed_blue), 17));
@@ -194,12 +201,15 @@ begin
 
                 end if;
                 
+                -- shift the values in the shift registers for a pipeline delay
                 for i in 1 to RESULT_WIDTH+1 loop
 
                     r_max(i+1) <= r_max(i);
                     r_v_result(i+1) <= r_v_result(i);
 
                 end loop;
+
+                -- Check which is the maximum value and perform the necessary calculations
 
                 if r_max(RESULT_WIDTH+2) = "001" then
 
@@ -301,6 +311,7 @@ begin
 
     end process;
 
+    -- Assign the final results to the output signals
     h <= h_final_result;
     s <= s_final_result;
     v <= v_final_result;
